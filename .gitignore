@@ -1,0 +1,8 @@
+# Virtual Environment & Python cache
+.venv/
+__pycache__/
+*.pyc
+
+# DO NOT PUSH PASSWORDS OR STATE TO GITHUB
+src/config.py
+data/
