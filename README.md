@@ -48,14 +48,14 @@ Since GitHub is public, this repository protects your passwords by purposefully 
 You do NOT need to run the Python scripts manually. Simply use the provided launchers located in the `scripts/` directory based on your Operating System:
 
 ### For Windows Users (Desktop Testing / Task Scheduler)
-* **`scripts\run_scraper.bat`**: The main execution engine. Double-click this to safely activate your environment, launch the browser, and scrape the portal.
+* **`scripts\run_scraper.bat`**: The main execution engine. Double-click this to safely activate your environment, launch the visually tracked browser, and scrape the portal.
 * **`scripts\reset_state.bat`**: A hot-reset tool. Double-click this to purposefully delete your saved Playwright cookies if you want to test the raw Duo authentication login flow. 
 
 ### For Ubuntu / Linux Users (Cloud Server Automation)
 > [!WARNING] 
-> To run this in an Ubuntu terminal flawlessly, you **must** open `src/main.py` and change `headless=False` to `headless=True`! Ubuntu servers often do not have desktop graphical interfaces, so Playwright will crash if it tries to spawn a physical browser window!
+> Ubuntu cloud servers often do not have desktop graphical interfaces, so Playwright will crash if it tries to spawn a physical browser window. You **must** append the `--headless` flag to your command to run it invisibly!
 
-* **`./scripts/run_scraper.sh`**: The main execution engine. Schedule this via `cron` (e.g. `0 9 * * * /absolute/path/to/AutoWork/scripts/run_scraper.sh`) to run it every morning automatically!
+* **`./scripts/run_scraper.sh --headless`**: The main execution engine. Schedule this via `cron` (e.g. `0 9 * * * /absolute/path/to/AutoWork/scripts/run_scraper.sh --headless`) to run it every morning invisibly!
 * **`./scripts/reset_state.sh`**: Execute this to instantly destroy any saved session cookies and force a raw login.
 
 *(Don't forget to give your Linux scripts execution permissions before attempting to run them!)*
