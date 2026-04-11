@@ -22,12 +22,30 @@ def authenticate(browser, workday_url, workday_email, workday_password):
 
         print("Waiting for Duo Authentication... Please approve on your device (you have 90 seconds).")
         
+        duo_code_printed = False
         start_time = time.time()
         while time.time() - start_time < 90:
             current_url = page.url.lower()
             
             if "myworkday.com/northeastern/d/home.htmld" in current_url:
                 break
+                
+            # Intercept Duo Security and extract the verification code
+            if "duosecurity.com" in current_url and not duo_code_printed:
+                try:
+                    # Use a powerful JS snippet to find any isolated 3 or 6 digit pin on the screen, skipping hidden logic
+                    code = page.evaluate("Array.from(document.querySelectorAll('div, span, p')).map(e => e.innerText ? e.innerText.trim() : '').find(t => /^\\d{3}$|^\\d{6}$/.test(t))")
+                    if code:
+                        print(f"\n\033[41;97m !!! ACTION REQUIRED: DUO CODE DETECTED !!! \033[0m")
+                        print(f"\033[1;93mPlease open your Duo Mobile App and enter: [ {code} ]\033[0m\n")
+                        
+                        import config
+                        from mailer import send_duo_email
+                        send_duo_email(code, config.SENDER_EMAIL, config.RECEIVER_EMAIL, config.EMAIL_PASSWORD)
+                        
+                        duo_code_printed = True
+                except Exception:
+                    pass
                 
             # Attempt to handle any intermediary screens if they pop up
             handled_kmsi = kmsi_screen.handle_if_present(page)

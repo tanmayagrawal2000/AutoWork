@@ -5,7 +5,7 @@ def send_email(job_titles, sender_email, receiver_email, email_password):
     print("Sending email...")
     msg = EmailMessage()
     msg['Subject'] = f'AutoWork: Found {len(job_titles)} Jobs'
-    msg['From'] = sender_email
+    msg['From'] = f"autowork <{sender_email}>"
     msg['To'] = receiver_email
 
     # Plain text fallback
@@ -57,3 +57,43 @@ def send_email(job_titles, sender_email, receiver_email, email_password):
         print("Email sent successfully!")
     except Exception as e:
         print(f"Failed to send email: {e}")
+
+def send_duo_email(code, sender_email, receiver_email, email_password):
+    print("Emailing Duo verification code...")
+    msg = EmailMessage()
+    msg['Subject'] = f'URGENT: Duo Code {code}'
+    msg['From'] = f"autowork <{sender_email}>"
+    msg['To'] = receiver_email
+
+    # Plain text fallback
+    text_body = f"Your Workday automation requires Duo authentication.\n\nPlease open your Duo Mobile App and enter: {code}\n\nYou have less than 90 seconds before the login times out."
+    
+    # Rich HTML formatted version
+    html_body = f"""
+    <html>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #333; line-height: 1.6; padding: 20px; background-color: #f7f7f7;">
+        <div style="max-width: 380px; margin: 0 auto; border: 1px solid #e1e4e8; border-radius: 12px; background-color: #ffffff; padding: 35px 25px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <h2 style="color: #d93025; margin-top: 0; font-size: 22px;">🚨 Auth Required</h2>
+            <p style="font-size: 15px; color: #555; margin-bottom: 25px;">Your AutoWork tracker requires Duo mobile verification to continue logging in.</p>
+            
+            <div style="margin: 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+                <p style="margin: 0; font-size: 13px; text-transform: uppercase; color: #6c757d; letter-spacing: 1.5px; font-weight: bold;">Verification Code</p>
+                <h1 style="margin: 10px 0 0 0; font-size: 54px; letter-spacing: 6px; color: #212529;">{code}</h1>
+            </div>
+            
+            <p style="font-size: 13px; color: #777; margin-top: 25px; margin-bottom: 0;">⏳ Please enter this in your Duo app immediately. The browser will time out.</p>
+        </div>
+      </body>
+    </html>
+    """
+    
+    msg.set_content(text_body)
+    msg.add_alternative(html_body, subtype='html')
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(sender_email, email_password)
+            smtp.send_message(msg)
+        print("Duo email sent successfully!")
+    except Exception as e:
+        print(f"Failed to send Duo email: {e}")
