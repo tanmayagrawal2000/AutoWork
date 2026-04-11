@@ -1,7 +1,7 @@
 import os
 import time
 
-from screens import login_screen, kmsi_screen, remember_device_screen
+from screens import login_screen, kmsi_screen, remember_device_screen, duo_trust_screen
 
 def authenticate(browser, workday_url, workday_email, workday_password):
     state_file = os.path.join(os.path.dirname(__file__), "..", "data", "state.json")
@@ -50,6 +50,7 @@ def authenticate(browser, workday_url, workday_email, workday_password):
             # Attempt to handle any intermediary screens if they pop up
             handled_kmsi = kmsi_screen.handle_if_present(page)
             handled_remember = remember_device_screen.handle_if_present(page)
+            handled_duo_trust = duo_trust_screen.handle_if_present(page)
                 
             page.wait_for_timeout(1000)
         
