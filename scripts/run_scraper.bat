@@ -7,8 +7,8 @@ cd /d "%~dp0\.."
 :: Activate the Python Virtual Environment
 call .\.venv\Scripts\activate.bat
 
-:: Execute the scraper
-python src\main.py
+:: Execute the scraper and pass any command-line arguments (like --headless)
+python src\main.py %*
 
 echo.
 echo Job search complete! 

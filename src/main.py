@@ -6,10 +6,17 @@ from screens.jobs_screen import scrape_jobs
 from mailer import send_email
 import history_manager
 
+import sys
+
 def main():
     with sync_playwright() as p:
-        # Launch browser (set headless=False to watch the automation run visually)
-        browser = p.chromium.launch(headless=False) 
+        # Check command line arguments for headless toggle
+        is_headless = "--headless" in sys.argv
+        if is_headless:
+            print("Executing in HEADLESS mode (Invisible Browser)...")
+            
+        # Launch browser dynamically based on the command line flag
+        browser = p.chromium.launch(headless=is_headless)
         
         # 1. Authenticate (handles login, Duo, KMSI, and session saving)
         page = authenticate(
