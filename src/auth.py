@@ -6,11 +6,14 @@ from screens import login_screen, kmsi_screen, remember_device_screen, duo_trust
 def authenticate(browser, workday_url, workday_email, workday_password):
     state_file = os.path.join(os.path.dirname(__file__), "..", "data", "state.json")
     
+    # Force 1080p desktop rendering so headless Linux doesn't collapse Workday into mobile view
+    hd_viewport = {"width": 1920, "height": 1080}
+    
     if os.path.exists(state_file):
         print("Loading previous session to bypass login...")
-        context = browser.new_context(storage_state=state_file)
+        context = browser.new_context(storage_state=state_file, viewport=hd_viewport)
     else:
-        context = browser.new_context()
+        context = browser.new_context(viewport=hd_viewport)
 
     page = context.new_page()
 
@@ -27,7 +30,8 @@ def authenticate(browser, workday_url, workday_email, workday_password):
         while time.time() - start_time < 90:
             current_url = page.url.lower()
             
-            if "myworkday.com/northeastern/d/home.htmld" in current_url:
+            # Broadened regex to catch URL safely
+            if "myworkday.com/northeastern" in current_url:
                 break
                 
             # Intercept Duo Security and extract the verification code
@@ -56,13 +60,14 @@ def authenticate(browser, workday_url, workday_email, workday_password):
         
         # Wait for the login to complete and dashboard to load
         try:
-            page.wait_for_url("**myworkday.com/northeastern/d/home.htmld**", timeout=45000)
+            page.wait_for_url("**myworkday.com/northeastern**", timeout=15000)
             print("Successfully landed on Workday dashboard.")
         except Exception as e:
             print(f"Warning while waiting for Workday dashboard: {e}")
         
         # Save the session state ONLY AFTER we fully reach the Workday page
         print("Saving session...")
+        os.makedirs(os.path.dirname(state_file), exist_ok=True)
         context.storage_state(path=state_file)
     else:
         print("Already logged in from saved session!")
