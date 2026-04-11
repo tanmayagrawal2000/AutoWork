@@ -5,19 +5,19 @@ def scrape_jobs(page):
     
     # 1. Click "Menu" hamburger button
     print("Clicking 'Menu'...")
-    page.locator("text=MENU >> visible=true").first.click(timeout=15000)
+    page.locator("text=MENU >> visible=true").first.click(timeout=15000, force=True)
     
     # 2. Click "Jobs and Career Hub"
     print("Clicking 'Jobs and Career Hub'...")
-    page.locator("text=/Jobs and Career Hub/i >> visible=true").first.click(timeout=15000)
+    page.locator("text=/Jobs and Career Hub/i >> visible=true").first.click(timeout=15000, force=True)
     
     # 3. Click "Student Employment"
     print("Clicking 'Student Employment'...")
-    page.locator("text=/Student Employment/i >> visible=true").first.click(timeout=15000)
+    page.locator("text=/Student Employment/i >> visible=true").first.click(timeout=15000, force=True)
     
     # 4. Click "NU Find Student Jobs"
     print("Clicking 'NU Find Student Jobs'...")
-    page.locator("text=/NU Find Student Jobs/i >> visible=true").first.click(timeout=15000)
+    page.locator("text=/NU Find Student Jobs/i >> visible=true").first.click(timeout=15000, force=True)
     
     print("Reached the jobs portal! (Waiting for listings to load...)")
     
