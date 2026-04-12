@@ -97,3 +97,43 @@ def send_duo_email(code, sender_email, receiver_email, email_password):
         print("Duo email sent successfully!")
     except Exception as e:
         print(f"Failed to send Duo email: {e}")
+
+def send_error_email(error_message, sender_email, receiver_email, email_password):
+    print("Emailing error notification...")
+    msg = EmailMessage()
+    msg['Subject'] = '⚠️ AutoWork: Error Encountered'
+    msg['From'] = f"autowork <{sender_email}>"
+    msg['To'] = receiver_email
+
+    # Plain text fallback
+    text_body = f"Your Workday automation encountered an error:\n\n{error_message}\n\nPlease check the server logs."
+    
+    # Rich HTML formatted version
+    html_body = f"""
+    <html>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #333; line-height: 1.6; padding: 20px; background-color: #f7f7f7;">
+        <div style="max-width: 500px; margin: 0 auto; border: 1px solid #e1e4e8; border-radius: 12px; background-color: #ffffff; padding: 35px 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <h2 style="color: #d93025; margin-top: 0; font-size: 22px;">⚠️ Automation Error</h2>
+            <p style="font-size: 15px; color: #555; margin-bottom: 25px;">Your AutoWork tracker ran into an issue and crashed.</p>
+            
+            <div style="margin: 0; padding: 15px; background-color: #fff3f3; border-radius: 8px; border: 1px solid #ffcdd2;">
+                <p style="margin: 0; font-size: 13px; text-transform: uppercase; color: #d32f2f; letter-spacing: 1.5px; font-weight: bold;">Error Traceback</p>
+                <pre style="margin: 10px 0 0 0; font-size: 13px; color: #333; white-space: pre-wrap; word-wrap: break-word;">{error_message}</pre>
+            </div>
+            
+            <p style="font-size: 13px; color: #777; margin-top: 25px; margin-bottom: 0;">Please VPN into your Ubuntu server and check the terminal logs.</p>
+        </div>
+      </body>
+    </html>
+    """
+    
+    msg.set_content(text_body)
+    msg.add_alternative(html_body, subtype='html')
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(sender_email, email_password)
+            smtp.send_message(msg)
+        print("Error email sent successfully!")
+    except Exception as e:
+        print(f"Failed to send Error email: {e}")
