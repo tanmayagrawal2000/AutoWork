@@ -63,6 +63,7 @@ def authenticate(browser, workday_url, workday_email, workday_password):
         
         # Save the session state ONLY AFTER we fully reach the Workday page
         print("Saving session...")
+        os.makedirs(os.path.dirname(state_file), exist_ok=True)
         context.storage_state(path=state_file)
     else:
         print("Already logged in from saved session!")

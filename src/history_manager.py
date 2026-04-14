@@ -20,6 +20,7 @@ def save_seen_job_ids(job_ids):
     existing.update(job_ids)
     
     try:
+        os.makedirs(os.path.dirname(HISTORY_FILE), exist_ok=True)
         with open(HISTORY_FILE, 'w') as f:
             json.dump(list(existing), f, indent=4)
     except Exception as e:
