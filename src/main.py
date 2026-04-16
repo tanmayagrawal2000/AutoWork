@@ -72,8 +72,24 @@ def main():
                         screenshot_path = "error_screenshot.png"
                         page.screenshot(path=screenshot_path)
                         print(f"Screenshot saved to {screenshot_path}")
+                        
+                        # Check for session expiration / "Something went wrong"
+                        if "something went wrong" in page.content().lower():
+                            import os
+                            state_file = os.path.join(os.path.dirname(__file__), "..", "data", "state.json")
+                            if os.path.exists(state_file):
+                                print("Detected 'Something went wrong' on the page. Removing stale state.json...")
+                                os.remove(state_file)
+                                
+                            print("Exiting pipeline so the next run triggers a fresh login.")
+                            if browser:
+                                browser.close()
+                            sys.exit(1)
+                            
+                    except SystemExit:
+                        raise
                     except Exception as snap_err:
-                        print(f"Failed to capture screenshot: {snap_err}")
+                        print(f"Failed to capture screenshot or check page state: {snap_err}")
                 
                 try:
                     from mailer import send_error_email
