@@ -98,7 +98,7 @@ def send_duo_email(code, sender_email, receiver_email, email_password):
     except Exception as e:
         print(f"Failed to send Duo email: {e}")
 
-def send_error_email(error_message, sender_email, receiver_email, email_password):
+def send_error_email(error_message, sender_email, receiver_email, email_password, screenshot_path=None):
     print("Emailing error notification...")
     msg = EmailMessage()
     msg['Subject'] = '⚠️ AutoWork: Error Encountered'
@@ -129,6 +129,14 @@ def send_error_email(error_message, sender_email, receiver_email, email_password
     
     msg.set_content(text_body)
     msg.add_alternative(html_body, subtype='html')
+
+    if screenshot_path:
+        try:
+            with open(screenshot_path, 'rb') as f:
+                img_data = f.read()
+            msg.add_attachment(img_data, maintype='image', subtype='png', filename='error_screenshot.png')
+        except Exception as e:
+            print(f"Could not attach screenshot: {e}")
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
