@@ -145,3 +145,26 @@ def send_error_email(error_message, sender_email, receiver_email, email_password
         print("Error email sent successfully!")
     except Exception as e:
         print(f"Failed to send Error email: {e}")
+
+def send_debug_screenshot_email(sender_email, receiver_email, email_password, screenshot_path, counter):
+    print(f"Emailing debug screenshot #{counter}...")
+    msg = EmailMessage()
+    msg['Subject'] = f'DEBUG: AutoWork Screenshot #{counter}'
+    msg['From'] = f"autowork <{sender_email}>"
+    msg['To'] = receiver_email
+    msg.set_content(f"Automated debug screenshot #{counter} while waiting for Duo.")
+
+    if screenshot_path:
+        try:
+            with open(screenshot_path, 'rb') as f:
+                img_data = f.read()
+            msg.add_attachment(img_data, maintype='image', subtype='png', filename=f'debug_screenshot_{counter}.png')
+        except Exception as e:
+            print(f"Could not attach screenshot: {e}")
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(sender_email, email_password)
+            smtp.send_message(msg)
+    except Exception as e:
+        print(f"Failed to send Debug email: {e}")

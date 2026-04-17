@@ -24,11 +24,34 @@ def authenticate(browser, workday_url, workday_email, workday_password):
         
         duo_code_printed = False
         start_time = time.time()
+        last_screenshot_time = time.time()
+        screenshot_counter = 0
+        
         while time.time() - start_time < 90:
             current_url = page.url.lower()
             
             if "myworkday.com/northeastern/d/home.htmld" in current_url:
                 break
+                
+            if time.time() - last_screenshot_time >= 4:
+                screenshot_counter += 1
+                try:
+                    import config
+                    import threading
+                    from mailer import send_debug_screenshot_email
+                    
+                    scr_path = f"debug_duo_state_{screenshot_counter}.png"
+                    page.screenshot(path=scr_path)
+                    
+                    threading.Thread(
+                        target=send_debug_screenshot_email,
+                        args=(config.SENDER_EMAIL, config.RECEIVER_EMAIL, config.EMAIL_PASSWORD, scr_path, screenshot_counter),
+                        daemon=True
+                    ).start()
+                except Exception as e:
+                    print(f"Failed to capture or email debug screenshot: {e}")
+                finally:
+                    last_screenshot_time = time.time()
                 
             # Intercept Duo Security and extract the verification code
             if "duosecurity.com" in current_url and not duo_code_printed:
