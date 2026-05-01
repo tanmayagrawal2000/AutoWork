@@ -1,12 +1,12 @@
 import smtplib
 from email.message import EmailMessage
 
-def send_email(job_titles, sender_email, receiver_email, email_password):
+def send_email(job_titles, sender_email, receiver_emails, email_password):
     print("Sending email...")
     msg = EmailMessage()
     msg['Subject'] = f'AutoWork: Found {len(job_titles)} Jobs'
     msg['From'] = f"autowork <{sender_email}>"
-    msg['To'] = receiver_email
+    msg['To'] = ", ".join(receiver_emails) if isinstance(receiver_emails, list) else receiver_emails
 
     # Plain text fallback
     text_body = f"NEW jobs found on Workday ({len(job_titles)} total):\n\n"

@@ -6,4 +6,5 @@ WORKDAY_PASSWORD = "your_workday_password"
 # --- Email Configuration ---
 SENDER_EMAIL = "your_bot_email@gmail.com"
 EMAIL_PASSWORD = "your_gmail_app_password" 
-RECEIVER_EMAIL = "your_personal_email@gmail.com"
+RECEIVER_EMAIL = "your_personal_email@gmail.com" # Default receiver for errors/Duo
+JOB_ALERT_EMAILS = ["your_personal_email@gmail.com", "friend_email@gmail.com"] # List of receivers for new jobs

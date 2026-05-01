@@ -51,7 +51,7 @@ def main():
                             history_manager.save_seen_job_ids(new_ids)
                         
                         # Actually send the email containing ONLY the new jobs!
-                        send_email(new_jobs, config.SENDER_EMAIL, config.RECEIVER_EMAIL, config.EMAIL_PASSWORD)
+                        send_email(new_jobs, config.SENDER_EMAIL, config.JOB_ALERT_EMAILS, config.EMAIL_PASSWORD)
                     else:
                         print("No completely new jobs found since the last run. We are all up to date!")
                 else:
