@@ -90,7 +90,7 @@ class DashboardView(discord.ui.View):
         
         try:
             subprocess.Popen(
-                [script_path],
+                [script_path, "--headless"],
                 cwd=os.path.join(os.path.dirname(__file__), ".."),
                 creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0
             )
