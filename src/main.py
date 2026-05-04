@@ -7,8 +7,22 @@ from mailer import send_email
 import history_manager
 
 import sys
+import os
+import json
+import time
 
 def main():
+    try:
+        pause_file = os.path.join(os.path.dirname(__file__), "..", "data", "pause_state.json")
+        if os.path.exists(pause_file):
+            with open(pause_file, 'r') as f:
+                pause_data = json.load(f)
+                if time.time() < pause_data.get('paused_until', 0):
+                    print(f"Scraper is paused until {time.ctime(pause_data['paused_until'])}")
+                    sys.exit(0)
+    except Exception as e:
+        print(f"Warning: Could not check pause state: {e}")
+
     try:
         with sync_playwright() as p:
             # Check command line arguments for headless toggle

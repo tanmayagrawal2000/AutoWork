@@ -2,11 +2,14 @@ import discord
 from discord.ext import commands
 import os
 import subprocess
+import json
+import time
 import bot_config
 
 # Path to the data directory relative to this script
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 STATE_FILE = os.path.join(DATA_DIR, "state.json")
+PAUSE_FILE = os.path.join(DATA_DIR, "pause_state.json")
 
 class BranchSelect(discord.ui.Select):
     def __init__(self, branches):
@@ -64,6 +67,39 @@ class BranchSelectView(discord.ui.View):
         self.add_item(cancel_btn)
 
 
+class PauseSelect(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label="30 Minutes", description="Pause the scraper for 30 minutes", value="1800", emoji="⏳"),
+            discord.SelectOption(label="1 Hour", description="Pause the scraper for 1 hour", value="3600", emoji="🕐"),
+            discord.SelectOption(label="2 Hours", description="Pause the scraper for 2 hours", value="7200", emoji="🕑"),
+        ]
+        super().__init__(placeholder='Select pause duration...', min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        delay = int(self.values[0])
+        paused_until = time.time() + delay
+        
+        os.makedirs(os.path.dirname(PAUSE_FILE), exist_ok=True)
+        with open(PAUSE_FILE, 'w') as f:
+            json.dump({"paused_until": paused_until}, f)
+            
+        embed = interaction.message.embeds[0]
+        embed.set_footer(text=f"⏸️ Scraper paused for {delay // 60} minutes.")
+        await interaction.response.edit_message(embed=embed, view=DashboardView())
+
+class PauseSelectView(discord.ui.View):
+    def __init__(self):
+        super().__init__()
+        self.add_item(PauseSelect())
+        cancel_btn = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.secondary, emoji="❌")
+        async def cancel_callback(interaction: discord.Interaction):
+            embed = interaction.message.embeds[0]
+            embed.set_footer(text="Action cancelled.")
+            await interaction.response.edit_message(embed=embed, view=DashboardView())
+        cancel_btn.callback = cancel_callback
+        self.add_item(cancel_btn)
+
 class DashboardView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None) # Persistent view
@@ -98,6 +134,44 @@ class DashboardView(discord.ui.View):
         except Exception as e:
             embed.set_footer(text=f"❌ Failed to start scraper: {e}")
             
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="Pause Status", style=discord.ButtonStyle.secondary, custom_id="btn_status", emoji="⏱️")
+    async def pause_status(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = interaction.message.embeds[0]
+        if os.path.exists(PAUSE_FILE):
+            try:
+                with open(PAUSE_FILE, 'r') as f:
+                    data = json.load(f)
+                    remaining = int(data.get('paused_until', 0) - time.time())
+                    if remaining > 0:
+                        mins = remaining // 60
+                        embed.set_footer(text=f"⏸️ Scraper is PAUSED. Resumes in ~{mins} minutes.")
+                    else:
+                        embed.set_footer(text="▶️ Scraper is ACTIVE (Pause expired).")
+            except Exception as e:
+                embed.set_footer(text="⚠️ Error reading pause state.")
+        else:
+            embed.set_footer(text="▶️ Scraper is ACTIVE.")
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="Pause Scraper", style=discord.ButtonStyle.secondary, custom_id="btn_pause", emoji="⏸️")
+    async def pause_scraper(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = interaction.message.embeds[0]
+        embed.set_footer(text="Select pause duration from the dropdown below:")
+        await interaction.response.edit_message(embed=embed, view=PauseSelectView())
+
+    @discord.ui.button(label="Resume Scraper", style=discord.ButtonStyle.secondary, custom_id="btn_resume", emoji="▶️")
+    async def resume_scraper(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = interaction.message.embeds[0]
+        if os.path.exists(PAUSE_FILE):
+            try:
+                os.remove(PAUSE_FILE)
+                embed.set_footer(text="▶️ Scraper RESUMED successfully.")
+            except Exception as e:
+                embed.set_footer(text=f"❌ Failed to resume scraper: {e}")
+        else:
+            embed.set_footer(text="▶️ Scraper is already active (no pause file).")
         await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label="Switch Branch", style=discord.ButtonStyle.primary, custom_id="btn_branch", emoji="🔀")
