@@ -67,16 +67,51 @@ class BranchSelectView(discord.ui.View):
         self.add_item(cancel_btn)
 
 
+class CustomPauseModal(discord.ui.Modal, title='Custom Pause Duration'):
+    def __init__(self, original_message, view_to_restore):
+        super().__init__()
+        self.original_message = original_message
+        self.view_to_restore = view_to_restore
+        
+    hours = discord.ui.TextInput(
+        label='Enter duration in hours (e.g., 5.5)',
+        style=discord.TextStyle.short,
+        placeholder='12',
+        required=True,
+        max_length=5,
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            delay_hours = float(self.hours.value)
+            delay_seconds = int(delay_hours * 3600)
+            paused_until = time.time() + delay_seconds
+            
+            os.makedirs(os.path.dirname(PAUSE_FILE), exist_ok=True)
+            with open(PAUSE_FILE, 'w') as f:
+                json.dump({"paused_until": paused_until}, f)
+                
+            embed = self.original_message.embeds[0]
+            embed.set_footer(text=f"⏸️ Scraper paused for {delay_hours} hours.")
+            await interaction.response.edit_message(embed=embed, view=self.view_to_restore)
+        except ValueError:
+            await interaction.response.send_message("Invalid number of hours provided. Please use a number.", ephemeral=True)
+
 class PauseSelect(discord.ui.Select):
     def __init__(self):
         options = [
             discord.SelectOption(label="30 Minutes", description="Pause the scraper for 30 minutes", value="1800", emoji="⏳"),
             discord.SelectOption(label="1 Hour", description="Pause the scraper for 1 hour", value="3600", emoji="🕐"),
             discord.SelectOption(label="2 Hours", description="Pause the scraper for 2 hours", value="7200", emoji="🕑"),
+            discord.SelectOption(label="Custom Time", description="Enter a custom duration in hours", value="custom", emoji="✍️"),
         ]
         super().__init__(placeholder='Select pause duration...', min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
+        if self.values[0] == "custom":
+            await interaction.response.send_modal(CustomPauseModal(interaction.message, DashboardView()))
+            return
+
         delay = int(self.values[0])
         paused_until = time.time() + delay
         
