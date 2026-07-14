@@ -1,6 +1,6 @@
-# AutoWork: 🎓 Intelligent Workday Automation
+# AutoWork: 🎓 Intelligent Workday Automation (Rust Edition)
 
-AutoWork is a fully autonomous, headless-capable web scraper that securely logs into Northeastern Workday, completely bypasses secondary authentication loops (Duo Mobile, Microsoft KMSI), deeply scrapes dynamic job listings, and emails you a beautiful HTML payload containing *only the completely new jobs* since its last run.
+AutoWork is a fully autonomous, high-performance web scraper rewritten in Rust. It securely logs into Northeastern Workday, completely bypasses secondary authentication loops (Duo Mobile, Microsoft KMSI), deeply scrapes dynamic job listings, and emails you a beautiful HTML payload containing *only the completely new jobs* since its last run. It will also capture screenshots and notify you of any UI errors!
 
 ---
 
@@ -12,23 +12,11 @@ AutoWork is a fully autonomous, headless-capable web scraper that securely logs 
    cd AutoWork
    ```
 
-2. **Initialize a Python Virtual Environment:**
-   Run the following to initialize space for Playwright:
-   ```bash
-   python -m venv .venv
-   
-   # For Windows:
-   .\.venv\Scripts\activate
-   
-   # For Ubuntu/Linux:
-   source .venv/bin/activate
-   ```
+2. **Install Rust:**
+   If you don't have Rust installed, download it from [rustup.rs](https://rustup.rs/).
 
 3. **Install Dependencies:**
-   ```bash
-   pip install playwright
-   playwright install chromium
-   ```
+   Since this project uses Rust's Cargo package manager, dependencies are automatically fetched when you run the project. However, the scraper uses the `headless_chrome` crate, which requires a Chromium-based browser (Google Chrome or Microsoft Edge) to be installed on your system.
 
 ---
 
@@ -36,8 +24,8 @@ AutoWork is a fully autonomous, headless-capable web scraper that securely logs 
 
 Since GitHub is public, this repository protects your passwords by purposefully ignoring your configuration file. You must create one locally:
 
-1. Duplicate the `src/config.example.py` template and rename the new file strictly to `src/config.py`.
-2. Open `src/config.py` and replace the placeholder variables with your genuine credentials:
+1. Duplicate the `.env.example` template and rename the new file strictly to `.env`.
+2. Open `.env` and replace the placeholder variables with your genuine credentials:
    - **Workday Credentials**: Your university email and password.
    - **Gmail Setup**: The script requires a **Gmail App Password** to act as a bot to send you emails. *(Do not use your normal Google profile password. Go to your Google Account -> Security -> 2-Step Verification -> App Passwords to generate a unique 16-character string).*
 
@@ -45,23 +33,16 @@ Since GitHub is public, this repository protects your passwords by purposefully 
 
 ## 🛠 Operation & Execution
 
-You do NOT need to run the Python scripts manually. Simply use the provided launchers located in the `scripts/` directory based on your Operating System:
+Run the project directly using Cargo:
 
-### For Windows Users (Desktop Testing / Task Scheduler)
-* **`scripts\run_scraper.bat`**: The main execution engine. Double-click this to safely activate your environment, launch the visually tracked browser, and scrape the portal.
-* **`scripts\reset_state.bat`**: A hot-reset tool. Double-click this to purposefully delete your saved Playwright cookies if you want to test the raw Duo authentication login flow. 
-
-### For Ubuntu / Linux Users (Cloud Server Automation)
-> [!WARNING] 
-> Ubuntu cloud servers often do not have desktop graphical interfaces, so Playwright will crash if it tries to spawn a physical browser window. You **must** append the `--headless` flag to your command to run it invisibly!
-
-* **`./scripts/run_scraper.sh --headless`**: The main execution engine. Schedule this via `cron` (e.g. `0 9 * * * /absolute/path/to/AutoWork/scripts/run_scraper.sh --headless`) to run it every morning invisibly!
-* **`./scripts/reset_state.sh`**: Execute this to instantly destroy any saved session cookies and force a raw login.
-
-*(Don't forget to give your Linux scripts execution permissions before attempting to run them!)*
 ```bash
-chmod +x scripts/run_scraper.sh scripts/reset_state.sh
+cargo run --release
 ```
+
+If you want the browser to run completely invisibly in the background, ensure `HEADLESS=true` is set inside your `.env` file!
+
+### Resetting State
+To force a fresh login (to test the Duo authentication flow, for example), simply delete the auto-generated `data/browser_profile` directory. This will destroy the saved session cookies.
 
 ---
 
@@ -71,3 +52,6 @@ If the script attempts to login but your standard saved-session cookies have exp
 AutoWork is programmed to recognize this intercept natively. It will pause the automation loop, dynamically extract the required Duo passcode straight from the rendered browser DOM, and instantly email you a massive red **"Auth Required"** dashboard. 
 
 You will have exactly 90 seconds to type the passcode into your Duo mobile app, at which point AutoWork will instantly press "Yes, this is my device", detect the unlock, and resume its web scraping without skipping a beat!
+
+## ⚠️ Advanced Error Handling
+Workday frequently updates their UI dashboard layouts. If AutoWork gets stuck and cannot find a navigation button, it will instantly abort the scrape, command `headless_chrome` to capture a full native PNG screenshot of the browser window, and email you an emergency alert with the screenshot attached so you can diagnose the problem immediately!

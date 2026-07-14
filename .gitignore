@@ -1,8 +1,9 @@
-# Virtual Environment & Python cache
-.venv/
-__pycache__/
-*.pyc
+# Rust compilation output
+target/
+Cargo.lock
 
-# DO NOT PUSH PASSWORDS OR STATE TO GITHUB
-src/config.py
+# Local configuration
+.env
+
+# Application State
 data/
