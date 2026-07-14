@@ -67,6 +67,7 @@ pub async fn run_scraper_logic(is_headless: bool) -> Result<(), Box<dyn std::err
     
     let mut launch_options = LaunchOptionsBuilder::default();
     launch_options.headless(is_headless);
+    launch_options.window_size(Some((1920, 1080)));
     
     // Save cookies and session state across runs
     let profile_dir = std::env::current_dir().unwrap().join("data").join("browser_profile");
