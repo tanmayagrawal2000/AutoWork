@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use headless_chrome::Browser;
 use headless_chrome::Tab;
 use std::sync::Arc;
@@ -9,8 +10,26 @@ pub fn authenticate(
     workday_url: &str,
     email: &str,
     password: &str,
+    debug_mode: Arc<AtomicBool>,
 ) -> Result<Arc<Tab>, Box<dyn std::error::Error>> {
     let tab = browser.new_tab()?;
+    
+    let tab_clone = Arc::clone(&tab);
+    let debug_mode_clone = Arc::clone(&debug_mode);
+    thread::spawn(move || {
+        loop {
+            if debug_mode_clone.load(Ordering::SeqCst) {
+                if let Ok(png_data) = tab_clone.capture_screenshot(headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Png, None, None, true) {
+                    let sender_email = std::env::var("SENDER_EMAIL").unwrap_or_default();
+                    let receiver_email = std::env::var("RECEIVER_EMAIL").unwrap_or_default();
+                    let email_password = std::env::var("EMAIL_PASSWORD").unwrap_or_default();
+                    let _ = crate::mailer::send_debug_screenshot_email(png_data, &sender_email, &receiver_email, &email_password);
+                }
+            }
+            thread::sleep(Duration::from_secs(10));
+        }
+    });
+
     println!("Navigating to Workday...");
     tab.navigate_to(workday_url)?;
     tab.wait_until_navigated()?;

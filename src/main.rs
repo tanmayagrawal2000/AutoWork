@@ -7,6 +7,8 @@ mod discord_bot;
 
 use headless_chrome::{Browser, LaunchOptionsBuilder};
 use std::env;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use dotenv::dotenv;
 
 #[tokio::main]
@@ -14,18 +16,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
     
     let args: Vec<String> = env::args().collect();
+    
+    let debug_mode_env = env::var("DEBUG_MODE").unwrap_or_else(|_| "false".to_string()) == "true" || args.contains(&"--debug".to_string());
+    let debug_mode = Arc::new(AtomicBool::new(debug_mode_env));
+    
     if args.contains(&"--bot".to_string()) {
         println!("Starting Discord Bot...");
-        // the error type returned by start_bot is Send+Sync, so we can unwrap or map it
-        if let Err(e) = discord_bot::start_bot().await {
+        if let Err(e) = discord_bot::start_bot(debug_mode).await {
             println!("Bot error: {}", e);
         }
         return Ok(());
     }
 
+    let is_headless = args.contains(&"--headless".to_string());
+    run_scraper_logic(debug_mode, is_headless).await
+}
+
+pub async fn run_scraper_logic(debug_mode: Arc<AtomicBool>, is_headless: bool) -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting AutoWork Scraper (Rust/Obscura Backend)...");
     
-    let is_headless = args.contains(&"--headless".to_string());
     let executable_path = env::var("OBSCURA_PATH").unwrap_or_else(|_| "".to_string());
     
     let mut launch_options = LaunchOptionsBuilder::default();
@@ -53,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let workday_email = env::var("WORKDAY_EMAIL").expect("WORKDAY_EMAIL not set in .env");
     let workday_password = env::var("WORKDAY_PASSWORD").expect("WORKDAY_PASSWORD not set in .env");
     
-    let tab = auth::authenticate(&browser, &workday_url, &workday_email, &workday_password)?;
+    let tab = auth::authenticate(&browser, &workday_url, &workday_email, &workday_password, debug_mode)?;
     let job_titles = screens::scrape_jobs(tab)?;
     
     if !job_titles.is_empty() {

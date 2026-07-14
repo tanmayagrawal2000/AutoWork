@@ -89,7 +89,7 @@ pub fn send_error_email(error_message: &str, screenshot: Option<Vec<u8>>, sender
         .singlepart(SinglePart::plain(text_body))
         .singlepart(SinglePart::html(html_body));
 
-    let mut email_builder = Message::builder()
+    let email_builder = Message::builder()
         .from(sender_email.parse()?)
         .to(receiver_email.parse()?)
         .subject("⚠️ AutoWork: Error Encountered");
@@ -111,5 +111,36 @@ pub fn send_error_email(error_message: &str, screenshot: Option<Vec<u8>>, sender
 
     mailer.send(&email)?;
     println!("Error email sent successfully!");
+    Ok(())
+}
+
+pub fn send_debug_screenshot_email(png_data: Vec<u8>, sender_email: &str, receiver_email: &str, email_password: &str) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Emailing debug screenshot...");
+    
+    let text_body = "Debug Screenshot Attached.".to_string();
+    let html_body = "<html><body><h2>🐛 Debug Screenshot</h2><p>Here is the latest screenshot from the headless browser.</p></body></html>".to_string();
+
+    let multipart = MultiPart::alternative()
+        .singlepart(SinglePart::plain(text_body))
+        .singlepart(SinglePart::html(html_body));
+
+    let attachment = Attachment::new(String::from("debug_screenshot.png"))
+        .body(png_data, ContentType::parse("image/png").unwrap());
+
+    let email = Message::builder()
+        .from(sender_email.parse()?)
+        .to(receiver_email.parse()?)
+        .subject("🐛 AutoWork Debug Screenshot")
+        .multipart(MultiPart::mixed().multipart(multipart).singlepart(attachment))?;
+
+    let mailer = SmtpTransport::relay("smtp.gmail.com")?
+        .credentials(lettre::transport::smtp::authentication::Credentials::new(
+            sender_email.to_string(),
+            email_password.to_string(),
+        ))
+        .build();
+
+    mailer.send(&email)?;
+    println!("Debug screenshot emailed successfully!");
     Ok(())
 }

@@ -19,7 +19,7 @@ pub fn scrape_jobs(tab: Arc<Tab>) -> Result<Vec<Job>, Box<dyn std::error::Error>
         thread::sleep(Duration::from_millis(2000));
     }
     
-    let mut send_err = |element_name: &str, tab_ref: &Arc<Tab>| -> Box<dyn std::error::Error> {
+    let send_err = |element_name: &str, tab_ref: &Arc<Tab>| -> Box<dyn std::error::Error> {
         let msg = format!("Failed to find or click UI element: '{}'. Workday layout might have changed or page load timed out.", element_name);
         println!("CRITICAL ERROR: {}", msg);
         let sender = std::env::var("SENDER_EMAIL").unwrap_or_default();
