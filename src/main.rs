@@ -7,8 +7,7 @@ mod discord_bot;
 
 use headless_chrome::{Browser, LaunchOptionsBuilder};
 use std::env;
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
+use std::fs;
 use dotenv::dotenv;
 
 #[tokio::main]
@@ -18,22 +17,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     
     let debug_mode_env = env::var("DEBUG_MODE").unwrap_or_else(|_| "false".to_string()) == "true" || args.contains(&"--debug".to_string());
-    let debug_mode = Arc::new(AtomicBool::new(debug_mode_env));
+    
+    // Initialize the state.json file if a debug flag is explicitly provided
+    if debug_mode_env {
+        let _ = fs::create_dir_all("data");
+        let state = crate::models::AppState {
+            mode: "Debug".to_string(),
+            pause_time: None,
+            dashboard_msg_id: None,
+        };
+        if let Ok(json) = serde_json::to_string_pretty(&state) {
+            let _ = fs::write("data/state.json", json);
+        }
+    }
     
     if args.contains(&"--bot".to_string()) {
         println!("Starting Discord Bot...");
-        if let Err(e) = discord_bot::start_bot(debug_mode).await {
+        if let Err(e) = discord_bot::start_bot().await {
             println!("Bot error: {}", e);
         }
         return Ok(());
     }
 
     let is_headless = args.contains(&"--headless".to_string());
-    run_scraper_logic(debug_mode, is_headless).await
+    run_scraper_logic(is_headless).await
 }
 
-pub async fn run_scraper_logic(debug_mode: Arc<AtomicBool>, is_headless: bool) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn run_scraper_logic(is_headless: bool) -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting AutoWork Scraper (Rust/Obscura Backend)...");
+    
+    if let Ok(content) = std::fs::read_to_string("data/state.json") {
+        if let Ok(mut state) = serde_json::from_str::<crate::models::AppState>(&content) {
+            if let Some(pause_time) = state.pause_time {
+                if chrono::Utc::now() < pause_time {
+                    println!("Scraper is paused until {}. Skipping run.", pause_time);
+                    return Ok(());
+                } else {
+                    println!("Pause time has passed. Resuming...");
+                    state.pause_time = None;
+                    if let Ok(json) = serde_json::to_string_pretty(&state) {
+                        let _ = std::fs::write("data/state.json", json);
+                    }
+                }
+            }
+        }
+    }
     
     let executable_path = env::var("OBSCURA_PATH").unwrap_or_else(|_| "".to_string());
     
@@ -62,7 +90,7 @@ pub async fn run_scraper_logic(debug_mode: Arc<AtomicBool>, is_headless: bool) -
     let workday_email = env::var("WORKDAY_EMAIL").expect("WORKDAY_EMAIL not set in .env");
     let workday_password = env::var("WORKDAY_PASSWORD").expect("WORKDAY_PASSWORD not set in .env");
     
-    let tab = auth::authenticate(&browser, &workday_url, &workday_email, &workday_password, debug_mode)?;
+    let tab = auth::authenticate(&browser, &workday_url, &workday_email, &workday_password)?;
     let job_titles = screens::scrape_jobs(tab)?;
     
     if !job_titles.is_empty() {

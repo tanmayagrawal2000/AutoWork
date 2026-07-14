@@ -1,24 +1,32 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use headless_chrome::Browser;
 use headless_chrome::Tab;
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
+use std::fs;
 
 pub fn authenticate(
     browser: &Browser,
     workday_url: &str,
     email: &str,
     password: &str,
-    debug_mode: Arc<AtomicBool>,
 ) -> Result<Arc<Tab>, Box<dyn std::error::Error>> {
     let tab = browser.new_tab()?;
     
     let tab_clone = Arc::clone(&tab);
-    let debug_mode_clone = Arc::clone(&debug_mode);
     thread::spawn(move || {
         loop {
-            if debug_mode_clone.load(Ordering::SeqCst) {
+            let debug_enabled = if let Ok(content) = fs::read_to_string("data/state.json") {
+                if let Ok(state) = serde_json::from_str::<crate::models::AppState>(&content) {
+                    state.mode == "Debug"
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+            
+            if debug_enabled {
                 if let Ok(png_data) = tab_clone.capture_screenshot(headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Png, None, None, true) {
                     let sender_email = std::env::var("SENDER_EMAIL").unwrap_or_default();
                     let receiver_email = std::env::var("RECEIVER_EMAIL").unwrap_or_default();
