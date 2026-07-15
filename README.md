@@ -27,22 +27,30 @@ Since GitHub is public, this repository protects your passwords by purposefully 
 1. Duplicate the `.env.example` template and rename the new file strictly to `.env`.
 2. Open `.env` and replace the placeholder variables with your genuine credentials:
    - **Workday Credentials**: Your university email and password.
-   - **Gmail Setup**: The script requires a **Gmail App Password** to act as a bot to send you emails. *(Do not use your normal Google profile password. Go to your Google Account -> Security -> 2-Step Verification -> App Passwords to generate a unique 16-character string).*
+   - **Gmail Setup**: The script requires a **Gmail App Password** to act as a bot to send you emails. *(Go to your Google Account -> Security -> 2-Step Verification -> App Passwords)*.
+   - **Discord Bot** (Optional but Recommended): Add your `DISCORD_TOKEN` and a `DISCORD_CHANNEL_ID` to run the interactive dashboard.
 
 ---
 
 ## 🛠 Operation & Execution
 
-Run the project directly using Cargo:
+### 1. Interactive Discord Bot (Recommended)
+You can spawn a 24/7 background Discord Bot that automatically posts a persistent **Control Panel** to your server! From this dashboard, you can click buttons to instantly trigger the scraper headlessly, switch to Debug mode, reset your browser cookies, or pause the automation for hours.
+
+```bash
+cargo run --release -- --bot
+```
+
+### 2. Manual Terminal Run
+If you just want to run the scraper once through the terminal:
 
 ```bash
 cargo run --release
 ```
-
-If you want the browser to run completely invisibly in the background, ensure `HEADLESS=true` is set inside your `.env` file!
+*(Add the `--headless` flag to the command to run the browser invisibly in the background! e.g., `cargo run --release -- --headless`)*
 
 ### Resetting State
-To force a fresh login (to test the Duo authentication flow, for example), simply delete the auto-generated `data/browser_profile` directory. This will destroy the saved session cookies.
+To force a fresh login (to test the Duo authentication flow), you can either click the **Reset State** button on the Discord Dashboard, or manually delete the `data/browser_profile` folder. This destroys saved cookies.
 
 ---
 
