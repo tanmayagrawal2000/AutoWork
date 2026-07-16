@@ -18,6 +18,7 @@ fn get_state() -> AppState {
         mode: "Default".to_string(),
         pause_time: None,
         dashboard_msg_id: None,
+        consecutive_errors: 0,
     }
 }
 

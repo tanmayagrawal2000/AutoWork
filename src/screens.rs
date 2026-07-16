@@ -22,14 +22,42 @@ pub fn scrape_jobs(tab: Arc<Tab>) -> Result<Vec<Job>, Box<dyn std::error::Error>
     let send_err = |element_name: &str, tab_ref: &Arc<Tab>| -> Box<dyn std::error::Error> {
         let msg = format!("Failed to find or click UI element: '{}'. Workday layout might have changed or page load timed out.", element_name);
         println!("CRITICAL ERROR: {}", msg);
-        let sender = std::env::var("SENDER_EMAIL").unwrap_or_default();
-        let receiver = std::env::var("RECEIVER_EMAIL").unwrap_or_default();
-        let pass = std::env::var("EMAIL_PASSWORD").unwrap_or_default();
         
-        // Capture screenshot of the error state to attach to the email
-        let screenshot = tab_ref.capture_screenshot(headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Png, None, None, true).ok();
+        let threshold_str = std::env::var("ERROR_THRESHOLD").unwrap_or_else(|_| "3".to_string());
+        let threshold: u32 = threshold_str.parse().unwrap_or(3);
         
-        let _ = crate::mailer::send_error_email(&msg, screenshot, &sender, &receiver, &pass);
+        let mut state = crate::models::AppState {
+            mode: "Default".to_string(),
+            pause_time: None,
+            dashboard_msg_id: None,
+            consecutive_errors: 1,
+        };
+        
+        if let Ok(content) = std::fs::read_to_string("data/state.json") {
+            if let Ok(parsed) = serde_json::from_str::<crate::models::AppState>(&content) {
+                state = parsed;
+                state.consecutive_errors += 1;
+            }
+        }
+        
+        let current_errors = state.consecutive_errors;
+        let _ = std::fs::create_dir_all("data");
+        if let Ok(json) = serde_json::to_string_pretty(&state) {
+            let _ = std::fs::write("data/state.json", json);
+        }
+        
+        if current_errors >= threshold {
+            let sender = std::env::var("SENDER_EMAIL").unwrap_or_default();
+            let receiver = std::env::var("RECEIVER_EMAIL").unwrap_or_default();
+            let pass = std::env::var("EMAIL_PASSWORD").unwrap_or_default();
+            
+            let screenshot = tab_ref.capture_screenshot(headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Png, None, None, true).ok();
+            
+            let _ = crate::mailer::send_error_email(&msg, screenshot, &sender, &receiver, &pass);
+        } else {
+            println!("Error threshold not reached ({} < {}), skipping email.", current_errors, threshold);
+        }
+        
         msg.into()
     };
 

@@ -16,4 +16,6 @@ pub struct AppState {
     pub pause_time: Option<chrono::DateTime<chrono::Utc>>,
     #[serde(default)]
     pub dashboard_msg_id: Option<u64>,
+    #[serde(default)]
+    pub consecutive_errors: u32,
 }

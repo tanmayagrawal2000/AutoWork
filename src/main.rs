@@ -25,6 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             mode: "Debug".to_string(),
             pause_time: None,
             dashboard_msg_id: None,
+            consecutive_errors: 0,
         };
         if let Ok(json) = serde_json::to_string_pretty(&state) {
             let _ = fs::write("data/state.json", json);
@@ -116,6 +117,18 @@ pub async fn run_scraper_logic(is_headless: bool) -> Result<(), Box<dyn std::err
         }
     } else {
         println!("No job titles were scraped, skipping email.");
+    }
+    
+    // Reset consecutive errors on successful run
+    if let Ok(content) = std::fs::read_to_string("data/state.json") {
+        if let Ok(mut state) = serde_json::from_str::<crate::models::AppState>(&content) {
+            if state.consecutive_errors > 0 {
+                state.consecutive_errors = 0;
+                if let Ok(json) = serde_json::to_string_pretty(&state) {
+                    let _ = std::fs::write("data/state.json", json);
+                }
+            }
+        }
     }
     
     Ok(())
