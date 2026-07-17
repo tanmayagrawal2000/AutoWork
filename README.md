@@ -29,6 +29,7 @@ Since GitHub is public, this repository protects your passwords by purposefully 
    - **Workday Credentials**: Your university email and password.
    - **Gmail Setup**: The script requires a **Gmail App Password** to act as a bot to send you emails. *(Go to your Google Account -> Security -> 2-Step Verification -> App Passwords)*.
    - **Discord Bot** (Optional but Recommended): Add your `DISCORD_TOKEN` and a `DISCORD_CHANNEL_ID` to run the interactive dashboard.
+   - **Error Handling**: Set `ERROR_THRESHOLD` to define how many consecutive UI failures must occur before an emergency screenshot email is sent (default is 3).
 
 ---
 
@@ -62,4 +63,4 @@ AutoWork is programmed to recognize this intercept natively. It will pause the a
 You will have exactly 90 seconds to type the passcode into your Duo mobile app, at which point AutoWork will instantly press "Yes, this is my device", detect the unlock, and resume its web scraping without skipping a beat!
 
 ## ⚠️ Advanced Error Handling
-Workday frequently updates their UI dashboard layouts. If AutoWork gets stuck and cannot find a navigation button, it will instantly abort the scrape, command `headless_chrome` to capture a full native PNG screenshot of the browser window, and email you an emergency alert with the screenshot attached so you can diagnose the problem immediately!
+Workday frequently updates their UI dashboard layouts. If AutoWork gets stuck and cannot find a navigation button, it will increment an error counter. If the failure happens consecutively across multiple runs (configured by `ERROR_THRESHOLD` in your `.env`, defaulting to 3), it will abort the scrape, command `headless_chrome` to capture a full native PNG screenshot of the browser window, and email you an emergency alert with the screenshot attached so you can diagnose the problem immediately! If a run is successful, the error counter safely resets to 0.
