@@ -154,7 +154,9 @@ pub async fn run_scraper_logic(is_headless: bool) -> Result<(), Box<dyn std::err
             let receivers_str = env::var("JOB_ALERT_EMAILS").unwrap_or_default();
             let receivers: Vec<String> = receivers_str.split(',').map(|s| s.trim().to_string()).collect();
             
-            let _ = mailer::send_email(&new_jobs, &sender_email, &receivers, &email_password);
+            if let Err(e) = mailer::send_email(&new_jobs, &sender_email, &receivers, &email_password) {
+                eprintln!("Failed to send email: {:?}", e);
+            }
         } else {
             println!("No completely new jobs found since the last run. We are all up to date!");
         }

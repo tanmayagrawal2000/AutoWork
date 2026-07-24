@@ -108,11 +108,14 @@ pub fn send_email(job_titles: &[Job], sender_email: &str, receiver_emails: &[Str
     }
     html_body.push_str("</div>\n<div style=\"background-color: #f9fafb; padding: 16px; text-align: center; color: #9ca3af; font-size: 12px;\">Sent via AutoWork &bull; Generated Automatically</div>\n</div>\n</body>\n</html>");
 
-    let to_addresses = receiver_emails.join(", ");
+    let mut builder = Message::builder().from(sender_email.parse()?);
+    for receiver in receiver_emails {
+        if !receiver.is_empty() {
+            builder = builder.to(receiver.parse()?);
+        }
+    }
 
-    let email = Message::builder()
-        .from(sender_email.parse()?)
-        .to(to_addresses.parse()?)
+    let email = builder
         .subject(format!("AutoWork: Found {} Jobs", job_titles.len()))
         .multipart(
             MultiPart::alternative()
