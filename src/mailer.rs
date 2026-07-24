@@ -7,8 +7,37 @@ pub fn send_email(job_titles: &[Job], sender_email: &str, receiver_emails: &[Str
     
     let mut text_body = format!("NEW jobs found on Workday ({} total):\n\n", job_titles.len());
     let mut html_body = format!(
-        "<html><body style=\"font-family: sans-serif;\"><h2>AutoWork Jobs Report</h2><p>Found <b>{}</b> new jobs.</p><div>",
-        job_titles.len()
+        r#"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        @media screen and (max-width: 600px) {{
+            .container {{ padding: 12px !important; }}
+            .header {{ padding: 16px 20px !important; }}
+            .header h2 {{ font-size: 20px !important; }}
+            .header p {{ font-size: 13px !important; }}
+            .content-area {{ padding: 20px !important; }}
+            .job-card {{ padding: 16px !important; margin-bottom: 24px !important; }}
+            .job-title {{ font-size: 19px !important; margin-bottom: 10px !important; }}
+            .pill {{ font-size: 12px !important; padding: 4px 8px !important; margin-right: 6px !important; margin-bottom: 6px !important; }}
+            .btn {{ font-size: 13px !important; padding: 8px 16px !important; margin-bottom: 16px !important; }}
+            .ai-box {{ padding: 16px !important; }}
+            .ai-title {{ font-size: 15px !important; margin-bottom: 12px !important; }}
+            .ai-list {{ font-size: 14px !important; }}
+            .ai-li {{ margin-bottom: 8px !important; }}
+        }}
+    </style>
+</head>
+<body class="container" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f5f7; color: #1f2937; margin: 0; padding: 20px;">
+    <div style="max-width: 650px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        <div class="header" style="background-color: #11325b; border-bottom: 6px solid #306ba8; padding: 24px;">
+            <h2 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">AutoWork Jobs Report</h2>
+            <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 14px;">Found {} new job{} matching your criteria.</p>
+        </div>
+        <div class="content-area" style="padding: 32px;">"#,
+        job_titles.len(), if job_titles.len() == 1 { "" } else { "s" }
     );
 
     for job in job_titles {
@@ -43,30 +72,41 @@ pub fn send_email(job_titles: &[Job], sender_email: &str, receiver_emails: &[Str
         let url_html = if job.url.is_empty() {
             "".to_string()
         } else {
-            format!("<br><a href=\"{}\" target=\"_blank\">View Job Posting</a>", job.url)
+            format!("<a href=\"{}\" class=\"btn\" target=\"_blank\" style=\"display: inline-block; background-color: #3182ce; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; margin-bottom: 20px;\">View Job Posting</a>", job.url)
         };
         
         let desc_html = if let Some(summary) = &job.ai_summary {
-            let mut s = String::from("<div style=\"margin-top:12px;color:#333;font-size:14px;background:#f9f9f9;padding:10px;border-radius:5px;\"><strong>✨ AI Summary:</strong><ul style=\"margin-top:8px;margin-bottom:0;padding-left:20px;\">");
-            s.push_str(&format!("<li><strong>Availability</strong>: {}</li>", summary.availability));
-            s.push_str(&format!("<li><strong>Pay Rate</strong>: {}</li>", summary.pay_rate));
-            s.push_str(&format!("<li><strong>Responsibilities</strong>: {}</li>", summary.responsibilities));
-            s.push_str(&format!("<li><strong>Eligibility</strong>: {}</li>", summary.eligibility));
-            s.push_str(&format!("<li><strong>Note</strong>: {}</li>", summary.note));
+            let mut s = String::from("<div class=\"ai-box\" style=\"background-color: #fffaf0; border-left: 4px solid #d69e2e; padding: 20px; border-radius: 4px;\">");
+            s.push_str("<h4 class=\"ai-title\" style=\"margin: 0 0 16px 0; color: #b7791f; font-size: 16px; font-weight: 700;\">✨ AI Summary</h4>");
+            s.push_str("<ul class=\"ai-list\" style=\"margin: 0; padding-left: 20px; color: #4a5568; font-size: 15px; line-height: 1.6;\">");
+            s.push_str(&format!("<li class=\"ai-li\" style=\"margin-bottom: 12px;\"><strong style=\"color: #2d3748;\">Availability:</strong> {}</li>", summary.availability));
+            s.push_str(&format!("<li class=\"ai-li\" style=\"margin-bottom: 12px;\"><strong style=\"color: #2d3748;\">Pay Rate:</strong> {}</li>", summary.pay_rate));
+            s.push_str(&format!("<li class=\"ai-li\" style=\"margin-bottom: 12px;\"><strong style=\"color: #2d3748;\">Responsibilities:</strong> {}</li>", summary.responsibilities));
+            s.push_str(&format!("<li class=\"ai-li\" style=\"margin-bottom: 12px;\"><strong style=\"color: #2d3748;\">Eligibility:</strong> {}</li>", summary.eligibility));
+            s.push_str(&format!("<li class=\"ai-li\"><strong style=\"color: #2d3748;\">Note:</strong> {}</li>", summary.note));
             s.push_str("</ul></div>");
             s
         } else if let Some(ref d) = job.description {
-            format!("<div style=\"margin-top:12px;color:#555;font-size:14px;\">{}</div>", d.replace("\n", "<br>"))
+            format!("<div style=\"padding: 16px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: #4a5568; line-height: 1.6;\">{}</div>", d.replace("\n", "<br>"))
         } else {
             "".to_string()
         };
 
         html_body.push_str(&format!(
-            "<div style=\"margin-bottom:16px;padding:18px;border:1px solid #e1e4e8;\"><h3>{}</h3><p>ID: {} | Posted: {}<br>Location: {}, {}{}</p>{}</div>",
-            job.name, job.id, date_str, job.location_city, job.location_country, url_html, desc_html
+            r#"<div class="job-card" style="margin-bottom: 32px; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <h3 class="job-title" style="margin: 0 0 12px 0; color: #2d3748; font-size: 22px; font-weight: 700;">{}</h3>
+                <div style="margin-bottom: 20px;">
+                    <span class="pill" style="display: inline-block; background-color: #f7fafc; color: #718096; font-size: 13px; padding: 6px 12px; border-radius: 6px; border: 1px solid #edf2f7; margin-right: 8px; margin-bottom: 8px;">📍 {}, {}</span>
+                    <span class="pill" style="display: inline-block; background-color: #f7fafc; color: #718096; font-size: 13px; padding: 6px 12px; border-radius: 6px; border: 1px solid #edf2f7; margin-right: 8px; margin-bottom: 8px;">📅 Posted: {}</span>
+                    <span class="pill" style="display: inline-block; background-color: #f7fafc; color: #718096; font-size: 13px; padding: 6px 12px; border-radius: 6px; border: 1px solid #edf2f7; margin-bottom: 8px;">🆔 {}</span>
+                </div>
+                {}
+                {}
+            </div>"#,
+            job.name, job.location_city, job.location_country, date_str, job.id, url_html, desc_html
         ));
     }
-    html_body.push_str("</div></body></html>");
+    html_body.push_str("</div>\n<div style=\"background-color: #f9fafb; padding: 16px; text-align: center; color: #9ca3af; font-size: 12px;\">Sent via AutoWork &bull; Generated Automatically</div>\n</div>\n</body>\n</html>");
 
     let to_addresses = receiver_emails.join(", ");
 
