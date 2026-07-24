@@ -8,6 +8,7 @@ mod discord_bot;
 use headless_chrome::{Browser, LaunchOptionsBuilder};
 use std::env;
 use std::fs;
+use std::sync::Arc;
 use dotenv::dotenv;
 
 #[tokio::main]
@@ -93,14 +94,56 @@ pub async fn run_scraper_logic(is_headless: bool) -> Result<(), Box<dyn std::err
     let workday_password = env::var("WORKDAY_PASSWORD").expect("WORKDAY_PASSWORD not set in .env");
     
     let tab = auth::authenticate(&browser, &workday_url, &workday_email, &workday_password)?;
-    let job_titles = screens::scrape_jobs(tab)?;
+    let job_titles = screens::scrape_jobs(Arc::clone(&tab))?;
     
     if !job_titles.is_empty() {
-        let new_jobs = history::filter_new_jobs(job_titles);
+        let mut new_jobs = history::filter_new_jobs(job_titles);
         if !new_jobs.is_empty() {
             println!("Found {} completely NEW jobs since our last run!", new_jobs.len());
-            for job in &new_jobs {
+            
+            for job in &mut new_jobs {
+                match screens::scrape_job_details_by_click(Arc::clone(&tab), &job.name) {
+                    Ok((url, desc)) => {
+                        job.url = url;
+                        job.description = Some(desc);
+                    },
+                    Err(e) => println!("Error fetching description for {}: {}", job.name, e),
+                }
                 println!(" - {} (ID: {})", job.name, job.id);
+            }
+            
+            println!("Hitting the AI API to generate summaries...");
+            let client = reqwest::Client::new();
+            for job in &mut new_jobs {
+                if let Some(desc) = &job.description {
+                    let default_prompt = "Analyze the following job description and extract the most critical information needed to decide whether to apply. Output the result strictly as a valid JSON array.\n\nDo not include any conversational text, markdown formatting (like ```json), or explanations.\n\nThe JSON must be an array of objects, where each object contains exactly two keys: \"title\" (the dynamic category name) and \"content\" (a concise, 1-2 sentence summary).\n\nExample format:\n[\n{\"title\": \"Role & Pay\", \"content\": \"CTL Monitor, $17.00 - $19.00/hr, 6-20 hours/week.\"},\n{\"title\": \"Mandatory Requirements\", \"content\": \"Must attend training Sept 2-3 and be in 2nd year or later.\"}\n]".to_string();
+                    let ai_prompt_template = env::var("AI_PROMPT").unwrap_or(default_prompt);
+                    
+                    let prompt = format!("{}\n\nJob Description:\n{}", ai_prompt_template.replace("\\n", "\n"), desc);
+                    
+                    let req_body = serde_json::json!({ "prompt": prompt });
+                    let ai_endpoint = env::var("AI_API_ENDPOINT").unwrap_or_else(|_| "http://localhost:8080/ask".to_string());
+                    match client.post(&ai_endpoint).json(&req_body).send().await {
+                        Ok(resp) => {
+                            if resp.status().is_success() {
+                                if let Ok(json_resp) = resp.json::<serde_json::Value>().await {
+                                    if let Some(answer) = json_resp.get("answer").and_then(|a| a.as_str()) {
+                                        match serde_json::from_str::<crate::models::JobAiSummary>(answer) {
+                                            Ok(summary) => {
+                                                job.ai_summary = Some(summary);
+                                                println!(" - Successfully summarized {}", job.name);
+                                            },
+                                            Err(e) => println!(" - Failed to parse AI summary for {}: {}", job.name, e),
+                                        }
+                                    }
+                                }
+                            } else {
+                                println!(" - API returned error status {} for {}", resp.status(), job.name);
+                            }
+                        },
+                        Err(e) => println!(" - Failed to call AI API for {}: {}", job.name, e),
+                    }
+                }
             }
             
             let new_ids: Vec<String> = new_jobs.iter().map(|j| j.id.clone()).collect();

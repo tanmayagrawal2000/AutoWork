@@ -121,11 +121,18 @@ pub fn scrape_jobs(tab: Arc<Tab>) -> Result<Vec<Job>, Box<dyn std::error::Error>
     let js_script = r#"
         (() => {
             let jobs = [];
+            let debugHtml = "";
             let containers = document.querySelectorAll("[data-automation-id='compositeContainer']");
             if (containers.length > 0) {
+                debugHtml = containers[0].innerHTML;
                 containers.forEach(container => {
                     let titleElem = container.querySelector("[data-automation-id='compositeHeader']");
+                    if (!titleElem) {
+                        titleElem = container.querySelector("[data-automation-id='promptOption']");
+                    }
                     let title = titleElem ? titleElem.innerText.trim() : "";
+                    
+                    let url = ""; // Will be populated by clicking
                     
                     let subheaderElem = container.querySelector("[data-automation-id='compositeSubHeaderOne']");
                     let subheader = subheaderElem ? subheaderElem.innerText.trim() : "";
@@ -156,12 +163,13 @@ pub fn scrape_jobs(tab: Arc<Tab>) -> Result<Vec<Job>, Box<dyn std::error::Error>
                             id: id,
                             posting_date_str: postingDateStr,
                             location_city: city,
-                            location_country: country
+                            location_country: country,
+                            url: url
                         });
                     }
                 });
             }
-            return JSON.stringify(jobs);
+            return JSON.stringify({ html: debugHtml, jobs: jobs });
         })()
     "#;
     
@@ -175,10 +183,18 @@ pub fn scrape_jobs(tab: Arc<Tab>) -> Result<Vec<Job>, Box<dyn std::error::Error>
                 posting_date_str: String,
                 location_city: String,
                 location_country: String,
+                url: String,
             }
             
-            if let Ok(raw_jobs) = serde_json::from_str::<Vec<RawJob>>(json_str) {
-                for rj in raw_jobs {
+            #[derive(serde::Deserialize)]
+            struct ScrapeResult {
+                html: String,
+                jobs: Vec<RawJob>,
+            }
+            
+            if let Ok(res) = serde_json::from_str::<ScrapeResult>(json_str) {
+                let _ = std::fs::write("data/debug_container.html", &res.html);
+                for rj in res.jobs {
                     let mut p_date = None;
                     if !rj.posting_date_str.is_empty() {
                         if let Ok(parsed) = NaiveDate::parse_from_str(&rj.posting_date_str, "%m/%d/%Y") {
@@ -191,6 +207,9 @@ pub fn scrape_jobs(tab: Arc<Tab>) -> Result<Vec<Job>, Box<dyn std::error::Error>
                         posting_date: p_date,
                         location_city: rj.location_city,
                         location_country: rj.location_country,
+                        url: rj.url,
+                        description: None,
+                        ai_summary: None,
                     });
                 }
             }
@@ -199,4 +218,100 @@ pub fn scrape_jobs(tab: Arc<Tab>) -> Result<Vec<Job>, Box<dyn std::error::Error>
     
     println!("Found {} jobs.", job_titles.len());
     Ok(job_titles)
+}
+
+pub fn scrape_job_details_by_click(tab: Arc<Tab>, job_title: &str) -> Result<(String, String), Box<dyn std::error::Error>> {
+    println!("Clicking job to fetch details: {}", job_title.trim());
+    
+    let normalized_target = job_title.replace("\r", "").replace("\n", "").trim().to_string();
+    let mut clicked = false;
+    
+    if let Ok(elems) = tab.find_elements("[data-automation-id='promptOption'], [data-automation-id='compositeHeader']") {
+        for el in elems {
+            if let Ok(text) = el.get_inner_text() {
+                let normalized_text = text.replace("\r", "").replace("\n", "").trim().to_string();
+                if normalized_text == normalized_target {
+                    if let Err(e) = el.click() {
+                        println!("Failed to click element: {}", e);
+                    } else {
+                        clicked = true;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    
+    if !clicked {
+        println!("Could not find job '{}' in list to click.", job_title.trim());
+        return Ok(("".to_string(), "".to_string()));
+    }
+    
+    // Wait for description to load
+    let mut found = false;
+    for _ in 0..10 {
+        if tab.find_element("[data-automation-id='jobPostingDescription']").is_ok() || 
+           tab.find_element("[data-automation-id='richTextContent']").is_ok() || 
+           tab.find_element("[data-automation-id='richTextEditor']").is_ok() {
+            found = true;
+            break;
+        }
+        thread::sleep(Duration::from_millis(1000));
+    }
+    
+    let url = tab.get_url();
+    
+    let js_script = r#"
+        (() => {
+            let jdElem = document.querySelector("[data-automation-id='jobPostingDescription']");
+            if (jdElem) {
+                return jdElem.innerText.trim();
+            }
+            let descElem = document.querySelector("[data-automation-id='richTextContent']");
+            if (descElem) {
+                return descElem.innerText.trim();
+            }
+            let editorElem = document.querySelector("[data-automation-id='richTextEditor']");
+            if (editorElem) {
+                return editorElem.innerText.trim();
+            }
+            return "";
+        })()
+    "#;
+    
+    let mut description = String::new();
+    if found {
+        if let Ok(remote_object) = tab.evaluate(js_script, false) {
+            if let Some(val) = remote_object.value {
+                if let Some(text) = val.as_str() {
+                    description = text.to_string();
+                }
+            }
+        }
+    }
+    
+    if description.is_empty() {
+        println!("Could not extract job description from page. Dumping HTML to data/debug_job_details.html");
+        if let Ok(remote_obj) = tab.evaluate("document.body.innerHTML", false) {
+            if let Some(val) = remote_obj.value {
+                if let Some(text) = val.as_str() {
+                    let _ = std::fs::write("data/debug_job_details.html", text);
+                }
+            }
+        }
+    }
+    
+    // Navigate back to the list
+    println!("Navigating back to job list...");
+    let _ = tab.evaluate("window.history.back();", false);
+    
+    // Wait for the list to reappear
+    for _ in 0..10 {
+        if tab.find_element("[data-automation-id='compositeContainer']").is_ok() {
+            break;
+        }
+        thread::sleep(Duration::from_millis(1000));
+    }
+    
+    Ok((url, description))
 }
